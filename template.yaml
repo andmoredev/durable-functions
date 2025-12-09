@@ -1,0 +1,254 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Album Registration System - Comparing Step Functions vs Durable Functions
+
+Globals:
+  Function:
+    Timeout: 900
+    Runtime: nodejs22.x
+    Architectures:
+      - arm64
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref AlbumTable
+        BUCKET_NAME: !Ref ImageBucket
+        BEDROCK_MODEL_ID: us.amazon.nova-lite-v1:0
+        AWS_REGION: !Ref AWS::Region
+
+Resources:
+  AlbumTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-albums'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-images-${AWS::AccountId}'
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+
+  S3TriggerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: functions/triggers/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlbumTable
+        - S3ReadPolicy:
+            BucketName: !Ref ImageBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !GetAtt AlbumWorkflowStateMachine.Arn
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt DurableFunctionOrchestrator.Arn
+      Events:
+        S3Event:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Ref ImageBucket
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: esm
+        Platform: node
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - index.mjs
+        External:
+          - '@aws-sdk/*'
+
+  DurableFunctionOrchestrator:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: workflows/durable-function/
+      Timeout: 900
+      Environment:
+        Variables:
+          EXECUTION_TIMEOUT: '86400'
+          RETENTION_PERIOD_DAYS: '14'
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlbumTable
+        - S3ReadPolicy:
+            BucketName: !Ref ImageBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+      AutoPublishAlias: live
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: esm
+        Platform: node
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - index.mjs
+        External:
+          - '@aws-sdk/*'
+
+  ImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: functions/image-processor/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlbumTable
+        - S3ReadPolicy:
+            BucketName: !Ref ImageBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: '*'
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: esm
+        Platform: node
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - index.mjs
+        External:
+          - '@aws-sdk/*'
+
+  PriceEstimatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: functions/price-estimator/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlbumTable
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: esm
+        Platform: node
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - index.mjs
+        External:
+          - '@aws-sdk/*'
+
+  AlbumWorkflowStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: workflows/step-functions/definition.asl.json
+      DefinitionSubstitutions:
+        ImageProcessorFunctionArn: !GetAtt ImageProcessorFunction.Arn
+        PriceEstimatorFunctionArn: !GetAtt PriceEstimatorFunction.Arn
+        TableName: !Ref AlbumTable
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ImageProcessorFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PriceEstimatorFunction
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AlbumTable
+
+Outputs:
+  AlbumTableName:
+    Description: DynamoDB table name for album data
+    Value: !Ref AlbumTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+
+  ImageBucketName:
+    Description: S3 bucket name for image uploads
+    Value: !Ref ImageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+
+  DurableFunctionArn:
+    Description: Durable function orchestrator ARN
+    Value: !GetAtt DurableFunctionOrchestrator.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DurableFunctionArn'
+
+  StateMachineArn:
+    Description: Step Functions state machine ARN
+    Value: !GetAtt AlbumWorkflowStateMachine.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StateMachineArn'
+
+  S3TriggerFunctionArn:
+    Description: S3 trigger function ARN
+    Value: !GetAtt S3TriggerFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-S3TriggerArn'

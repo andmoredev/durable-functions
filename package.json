@@ -1,0 +1,21 @@
+{
+  "name": "album-registration-system",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Album Registration System - Comparing Step Functions vs Durable Functions",
+  "main": "index.mjs",
+  "scripts": {
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "build": "sam build"
+  },
+  "dependencies": {
+    "@aws/durable-execution-sdk-js": "^1.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.947.0",
+    "@aws-sdk/client-s3": "^3.947.0",
+    "fast-check": "^3.15.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "Comment": "Album Registration Workflow - Step Functions Implementation",
+  "StartAt": "ProcessImage",
+  "States": {
+    "ProcessImage": {
+      "Type": "Pass",
+      "Result": {
+        "message": "Step Functions state machine placeholder"
+      },
+      "End": true
+    }
+  }
+}
