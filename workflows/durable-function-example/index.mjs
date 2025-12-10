@@ -23,7 +23,6 @@ export const handler = withDurableExecution(async (event, context) => {
   );
 
   // Step 3: Parallel operations - process multiple work streams concurrently
-  const parallelOperations = createParallelOperations(workItems.length);
   const parallelResults = await context.parallel([
     async (ctx) => ctx.step('parallelTask1', async () => {
       return await performDataValidation(workItemsCount);
