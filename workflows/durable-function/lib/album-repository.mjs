@@ -94,3 +94,34 @@ export async function updateAlbum(executionId, albumData) {
     ExpressionAttributeValues: expressionAttributeValues
   }));
 }
+
+export async function updateExecutionStatus(executionId, status, errorDetails = null) {
+  const now = new Date().toISOString();
+
+  const updateExpressionParts = ['#status = :status', 'updatedAt = :updatedAt'];
+  const expressionAttributeNames = {
+    '#status': 'status'
+  };
+  const expressionAttributeValues = {
+    ':status': status,
+    ':updatedAt': now
+  };
+
+  if (errorDetails) {
+    updateExpressionParts.push('errorDetails = :errorDetails');
+    expressionAttributeValues[':errorDetails'] = errorDetails;
+  }
+
+  const updateExpression = 'SET ' + updateExpressionParts.join(', ');
+
+  await client.send(new UpdateCommand({
+    TableName: process.env.TABLE_NAME,
+    Key: {
+      pk: executionId,
+      sk: 'metadata'
+    },
+    UpdateExpression: updateExpression,
+    ExpressionAttributeNames: expressionAttributeNames,
+    ExpressionAttributeValues: expressionAttributeValues
+  }));
+}

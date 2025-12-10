@@ -61,50 +61,50 @@
   - **Property 13: Album Key Structure**
   - **Validates: Requirements 3.4**
 
-- [ ] 5. Implement price estimator business logic
+- [x] 5. Implement price estimator business logic
   - Create `workflows/durable-function/lib/price-estimator.mjs`
   - Implement price calculation logic
   - Return price estimate and confidence score
   - Handle estimation errors gracefully
   - _Requirements: 5.2, 5.3_
 
-- [ ] 5.1 Write property test for price estimate completeness
+- [x] 5.1 Write property test for price estimate completeness
   - **Property 22: Price Estimate Completeness**
   - **Validates: Requirements 5.3**
 
-- [ ] 6. Implement validation task management
+- [x] 6. Implement validation task management
   - Create validation task creation logic
   - Implement callback handling for workflow resumption
   - Add timeout handling (1 hour default)
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 6.1 Write property test for validation data round-trip
+- [x] 6.1 Write property test for validation data round-trip
   - **Property 18: Validation Data Round-Trip**
   - **Validates: Requirements 4.4**
 
-- [ ] 6.2 Write property test for validation timeout handling
+- [x] 6.2 Write property test for validation timeout handling
   - **Property 19: Validation Timeout Handling**
   - **Validates: Requirements 4.5**
 
-- [ ] 7. Implement error handling and retry logic
+- [x] 7. Implement error handling and retry logic
   - Add try-catch blocks in step callbacks
   - Configure retry policies for Durable Function steps
   - Implement error logging with execution context
   - Update execution status on failures
   - _Requirements: 2.5, 10.1, 10.2_
 
-- [ ] 7.1 Write property test for error logging
+- [x] 7.1 Write property test for error logging
   - **Property 31: Error Logging**
   - **Validates: Requirements 10.1**
 
-- [ ] 7.2 Write property test for failure status update
+- [x] 7.2 Write property test for failure status update
   - **Property 32: Failure Status Update**
   - **Validates: Requirements 10.2**
 
-- [ ] 8. Checkpoint - Ensure all Durable Function tests pass
+- [x] 8. Checkpoint - Ensure all Durable Function tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Implement Step Functions state machine
+- [x] 9. Implement Step Functions state machine
   - Create ASL definition in `workflows/step-functions/definition.asl.json`
   - Define all 6 workflow states
   - Configure Map state for parallel price estimation
@@ -112,7 +112,7 @@
   - Add retry and catch configurations
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 9.1 Write property test for error retry mechanism
+- [x] 9.1 Write property test for error retry mechanism
   - **Property 28: Error Retry Mechanism**
   - **Validates: Requirements 8.5**
 

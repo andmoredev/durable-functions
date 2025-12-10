@@ -13,11 +13,12 @@ Globals:
         TABLE_NAME: !Ref AlbumTable
         BUCKET_NAME: !Ref ImageBucket
         BEDROCK_MODEL_ID: us.amazon.nova-lite-v1:0
-        AWS_REGION: !Ref AWS::Region
 
 Resources:
   AlbumTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
       TableName: !Sub '${AWS::StackName}-albums'
       BillingMode: PAY_PER_REQUEST
@@ -58,11 +59,22 @@ Resources:
             ProjectionType: ALL
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
 
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub '${AWS::StackName}-images-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       NotificationConfiguration:
         EventBridgeConfiguration:
           EventBridgeEnabled: true
@@ -74,11 +86,15 @@ Resources:
             Status: Enabled
             NoncurrentVersionExpirationInDays: 30
 
-  S3TriggerFunction:
+  DurableFunctionOrchestrator:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
-      CodeUri: functions/triggers/
+      CodeUri: workflows/durable-function/
+      Timeout: 900
+      DurableConfig:
+        ExecutionTimeout: 86400
+        RetentionPeriodInDays: 14
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref AlbumTable
@@ -87,12 +103,8 @@ Resources:
         - Statement:
             - Effect: Allow
               Action:
-                - states:StartExecution
-              Resource: !GetAtt AlbumWorkflowStateMachine.Arn
-            - Effect: Allow
-              Action:
-                - lambda:InvokeFunction
-              Resource: !GetAtt DurableFunctionOrchestrator.Arn
+                - bedrock:InvokeModel
+              Resource: '*'
       Events:
         S3Event:
           Type: EventBridgeRule
@@ -106,41 +118,6 @@ Resources:
                 bucket:
                   name:
                     - !Ref ImageBucket
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2022
-        Format: esm
-        Platform: node
-        OutExtension:
-          - .js=.mjs
-        EntryPoints:
-          - index.mjs
-        External:
-          - '@aws-sdk/*'
-
-  DurableFunctionOrchestrator:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: index.handler
-      CodeUri: workflows/durable-function/
-      Timeout: 900
-      Environment:
-        Variables:
-          EXECUTION_TIMEOUT: '86400'
-          RETENTION_PERIOD_DAYS: '14'
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref AlbumTable
-        - S3ReadPolicy:
-            BucketName: !Ref ImageBucket
-        - Statement:
-            - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-              Resource: '*'
-      AutoPublishAlias: live
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -221,6 +198,19 @@ Resources:
             FunctionName: !Ref PriceEstimatorFunction
         - DynamoDBCrudPolicy:
             TableName: !Ref AlbumTable
+      Events:
+        S3Event:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - Object Created
+              detail:
+                bucket:
+                  name:
+                    - !Ref ImageBucket
 
 Outputs:
   AlbumTableName:
@@ -246,9 +236,3 @@ Outputs:
     Value: !GetAtt AlbumWorkflowStateMachine.Arn
     Export:
       Name: !Sub '${AWS::StackName}-StateMachineArn'
-
-  S3TriggerFunctionArn:
-    Description: S3 trigger function ARN
-    Value: !GetAtt S3TriggerFunction.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-S3TriggerArn'

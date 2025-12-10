@@ -1,7 +1,21 @@
+import { estimatePrice } from './lib/price-estimator.mjs';
+
 export const handler = async (event) => {
-  console.log('Price Estimator Event:', JSON.stringify(event, null, 2));
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: 'Price estimator placeholder' })
-  };
+  try {
+    const album = event.album;
+
+    if (!album) {
+      throw new Error('album is required');
+    }
+
+    const priceData = await estimatePrice(album);
+
+    return {
+      albumIndex: album.albumIndex,
+      ...priceData
+    };
+  } catch (error) {
+    console.error('Price estimator error:', error);
+    throw error;
+  }
 };

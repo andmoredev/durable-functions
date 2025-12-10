@@ -1,7 +1,20 @@
+import { processImage } from './lib/image-processor.mjs';
+
 export const handler = async (event) => {
-  console.log('Image Processor Event:', JSON.stringify(event, null, 2));
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: 'Image processor placeholder' })
-  };
+  try {
+    const imageS3Key = event.imageS3Key;
+
+    if (!imageS3Key) {
+      throw new Error('imageS3Key is required');
+    }
+
+    const albums = await processImage(imageS3Key);
+
+    return {
+      albums
+    };
+  } catch (error) {
+    console.error('Image processor error:', error);
+    throw error;
+  }
 };
