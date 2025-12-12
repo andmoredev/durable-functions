@@ -6,9 +6,13 @@ This guide explains how to test the durable function example that demonstrates a
 
 The durable function example showcases:
 - **Step Operations**: Checkpointed data processing
+- **Wait Operations**: Time-based pauses without compute charges
 - **Wait for Callback**: Human-in-the-loop with external callbacks
 - **Parallel Operations**: Concurrent execution of multiple tasks
 - **Map Operations**: Durable iteration over collections
+- **Wait for Condition**: Polling with automatic backoff
+- **Lambda Invoke**: Function composition and workflow decomposition
+- **Child Context**: Isolated execution contexts for complex workflows
 - **Final Aggregation**: Comprehensive result compilation
 
 ## Test Event
@@ -36,6 +40,43 @@ Use the provided `test-event.json` file for testing:
   }
 }
 ```
+
+## WaitForCondition Pattern
+
+The function demonstrates the correct `waitForCondition` pattern with state management:
+
+```javascript
+const result = await context.waitForCondition(
+  async (state, ctx) => {
+    const readinessCheck = await checkSystemReadiness();
+    return { 
+      ...state, 
+      ready: readinessCheck.ready,
+      lastCheck: readinessCheck,
+      attempts: (state.attempts || 0) + 1
+    };
+  },
+  {
+    initialState: { 
+      ready: false, 
+      systemId: 'external-system-1',
+      startTime: Date.now(),
+      attempts: 0
+    },
+    waitStrategy: (state) =>
+      state.ready 
+        ? { shouldContinue: false }
+        : { shouldContinue: true, delay: { seconds: 3 } }
+  }
+);
+```
+
+**Key Features:**
+- **Predictable Behavior**: System becomes ready after exactly 3 attempts
+- **State Preservation**: State is maintained across polling attempts
+- **Fixed Delay**: 3 seconds between each attempt for consistent timing
+- **Simple Logic**: Easy to understand and test behavior
+- **Rich State**: Tracks attempts, timing, and last check results
 
 ## Testing Methods
 
@@ -114,25 +155,50 @@ cat response.json
    - Waits for external callback with generated ID
    - In testing, this will timeout and continue with default values
 
+### Phase 2.5: Simple Wait
+4. **Wait: time-based wait**
+   - Demonstrates simple time-based wait operation
+   - Waits for 5 seconds without consuming compute resources
+   - Shows how to pause execution for a specific duration
+
 ### Phase 3: Parallel Operations
-4. **Parallel: 3 concurrent tasks**
+5. **Parallel: 3 concurrent tasks**
    - **Task 1**: Data validation (100ms processing time)
    - **Task 2**: Data enrichment (150ms processing time)  
    - **Task 3**: Quality check (80ms processing time)
    - All execute concurrently with individual checkpoints
 
 ### Phase 4: Map Operations
-5. **Map: Process each work item**
+6. **Map: Process each work item**
    - Iterates over all 5 work items
    - Each item processed with individual checkpoint
    - Processing time varies by priority (priority × 50ms)
    - Transforms data and adds processing metadata
 
-### Phase 5: Final Aggregation
-6. **Step: aggregateResults**
-   - Combines all operation results
-   - Calculates comprehensive metrics
-   - Returns complete workflow summary
+### Phase 6: Wait for Condition
+7. **WaitForCondition: poll until system ready**
+   - Uses state management pattern with initialState and waitStrategy
+   - Implements exponential backoff (2^n seconds, capped at 10s)
+   - Maintains state across polling attempts with attempt counter
+   - Demonstrates condition-based waiting with proper state preservation
+
+### Phase 7: Lambda Function Invocation
+8. **Invoke: call Hello World function**
+   - Invokes another Lambda function and waits for result
+   - Demonstrates function composition patterns
+   - Uses environment variable for function ARN
+
+### Phase 8: Child Context Operations
+9. **RunInChildContext: isolated operations**
+   - Executes operations in isolated execution context
+   - Processes metadata and validates configuration
+   - Demonstrates workflow decomposition and isolation
+
+### Phase 9: Final Aggregation
+10. **Step: aggregateResults**
+    - Combines all operation results including advanced operations
+    - Calculates comprehensive execution metrics
+    - Returns complete workflow summary with all operation results
 
 ## Expected Response Structure
 

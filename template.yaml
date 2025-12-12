@@ -184,12 +184,35 @@ Resources:
         External:
           - '@aws-sdk/*'
 
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: functions/hello-world/
+      Timeout: 30
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2022
+        Format: esm
+        Platform: node
+        OutExtension:
+          - .js=.mjs
+        EntryPoints:
+          - index.mjs
+        External:
+          - '@aws-sdk/*'
+
   DurableFunctionExampleFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
       CodeUri: workflows/durable-function-example/
       Timeout: 900
+      Environment:
+        Variables:
+          HELLO_WORLD_FUNCTION_ARN: !GetAtt HelloWorldFunction.Arn
       DurableConfig:
         ExecutionTimeout: 3600
         RetentionPeriodInDays: 7
@@ -201,6 +224,8 @@ Resources:
                 - logs:CreateLogStream
                 - logs:PutLogEvents
               Resource: '*'
+        - LambdaInvokePolicy:
+            FunctionName: !Ref HelloWorldFunction
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -274,3 +299,9 @@ Outputs:
     Value: !GetAtt DurableFunctionExampleFunction.Arn
     Export:
       Name: !Sub '${AWS::StackName}-DurableFunctionExampleFunctionArn'
+
+  HelloWorldFunctionArn:
+    Description: Hello World function ARN
+    Value: !GetAtt HelloWorldFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-HelloWorldFunctionArn'

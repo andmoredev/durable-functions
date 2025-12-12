@@ -50,3 +50,19 @@ export async function performQualityCheck() {
     timestamp: Date.now()
   };
 }
+/**
+ * Create parallel operation functions for durable execution
+ */
+export function createParallelOperations(workItemsCount) {
+  return [
+    async (ctx) => ctx.step('parallelTask1', async () => {
+      return await performDataValidation(workItemsCount);
+    }),
+    async (ctx) => ctx.step('parallelTask2', async () => {
+      return await performDataEnrichment(workItemsCount);
+    }),
+    async (ctx) => ctx.step('parallelTask3', async () => {
+      return await performQualityCheck();
+    })
+  ];
+}

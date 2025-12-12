@@ -87,9 +87,13 @@ export function aggregateWorkflowResults(context, event, mapResults, parallelRes
   const endTime = Date.now();
   const startTime = event.startTime || endTime;
 
+  // Ensure mapResults is an array
+  const mapResultsArray = Array.isArray(mapResults) ? mapResults : [];
+  const parallelResultsArray = Array.isArray(parallelResults) ? parallelResults : [];
+
   // Calculate comprehensive metrics
-  const totalProcessingTime = mapResults.reduce((sum, item) => sum + (item.processingTime || 0), 0);
-  const avgProcessingTime = mapResults.length > 0 ? totalProcessingTime / mapResults.length : 0;
+  const totalProcessingTime = mapResultsArray.reduce((sum, item) => sum + (item.processingTime || 0), 0);
+  const avgProcessingTime = mapResultsArray.length > 0 ? totalProcessingTime / mapResultsArray.length : 0;
 
   return {
     // Workflow identification
@@ -97,8 +101,8 @@ export function aggregateWorkflowResults(context, event, mapResults, parallelRes
     executionId: context.executionId,
 
     // Operation results
-    processedItems: mapResults,
-    parallelResults,
+    processedItems: mapResultsArray,
+    parallelResults: parallelResultsArray,
     callbackResult,
 
     // Execution metrics
@@ -107,18 +111,18 @@ export function aggregateWorkflowResults(context, event, mapResults, parallelRes
     avgProcessingTime,
 
     // Checkpoint and operation counts
-    checkpointCount: mapResults.length + parallelResults.length + 4, // processInputData, waitForCallback, aggregateResults + map/parallel
+    checkpointCount: mapResultsArray.length + parallelResultsArray.length + 4, // processInputData, waitForCallback, aggregateResults + map/parallel
     operationCount: {
-      steps: mapResults.length + parallelResults.length + 3,
-      parallel: parallelResults.length,
-      map: mapResults.length,
+      steps: mapResultsArray.length + parallelResultsArray.length + 3,
+      parallel: parallelResultsArray.length,
+      map: mapResultsArray.length,
       wait: 1
     },
 
     // Success metrics
-    itemsProcessed: mapResults.length,
-    successfulItems: mapResults.filter(item => item.processed).length,
-    successRate: mapResults.length > 0 ? mapResults.filter(item => item.processed).length / mapResults.length : 0,
+    itemsProcessed: mapResultsArray.length,
+    successfulItems: mapResultsArray.filter(item => item.processed).length,
+    successRate: mapResultsArray.length > 0 ? mapResultsArray.filter(item => item.processed).length / mapResultsArray.length : 0,
 
     // Timestamps
     startTime: new Date(startTime).toISOString(),
