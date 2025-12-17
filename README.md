@@ -35,7 +35,7 @@ The example processes a batch of work items through a complete workflow that inc
 
 ## 📖 Blog Post
 
-For detailed explanation and background, read the accompanying blog post: **[Blog post link will be provided]**
+For detailed explanation and background, read the accompanying blog post: [Step Functions without ASL? Welcome Lambda Durable Functions](https://www.andmore.dev/blog/lambda_durable_functions/)
 
 ---
 
