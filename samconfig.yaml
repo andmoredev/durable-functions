@@ -1,9 +1,9 @@
 default:
   deploy:
     parameters:
-      stack_name: album-registration-system
+      stack_name: durable-function-example
       resolve_s3: true
-      s3_prefix: album-registration-system
+      s3_prefix: durable-function-example
       region: us-east-2
       capabilities: CAPABILITY_IAM
       image_repositories: []
